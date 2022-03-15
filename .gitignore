@@ -2,5 +2,9 @@
 # Exclude simulated dataset
 simulated_data.csv
 
-# Excluding playground notebook
+# Exclude pan-genome files
+gene_presence_absence.csv
+gene_presence_absence.Rtab
+
+# Exclude playground notebook
 playground.ipynb
