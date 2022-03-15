@@ -1,3 +1,6 @@
 
+# Exclude simulated dataset
+simulated_data.csv
+
 # Excluding playground notebook
 playground.ipynb
