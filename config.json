@@ -1,0 +1,6 @@
+{
+  "input_path": "path",
+  "feature_col_index": [1, 34, 5],
+  "label_cols": ["tob", "mer"],
+  "forest_preprocessing": 1
+}
