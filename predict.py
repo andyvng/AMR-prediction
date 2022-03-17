@@ -101,11 +101,11 @@ def predict_with_wdnn(X,
     # print(f"Accuracy: {accuracy}")
     # print(f"AUC: {auc}")
 
-    return model.predict(X_test)    
+    return model.predict(X_test)[:, 1]    
 
 def main():
     args = arg_parse()
-    config_path = args['config_path']
+    config_path = args.config_path
     split_ratio = 0.8
     seed = 22
     
@@ -119,7 +119,7 @@ def main():
     with open(config['label_path'], 'rb') as label_file:
         labels = pickle.load(label_file)
 
-    label_index  = int(args['label_index']) - 1
+    label_index  = int(args.label_index) - 1
     label = labels[label_index]
 
     # Get feature list
@@ -128,7 +128,7 @@ def main():
 
 
     df = pd.read_csv(config["input_path"])
-    X = df.iloc[features]
+    X = df[features]
     y = df[label]
 
     mask = y.notnull()
@@ -137,11 +137,11 @@ def main():
     y = y[mask].reset_index(drop=True)
     X = X[mask].reset_index(drop=True)
 
+    print(y.head(10))
+
     # # encode label
     # le = LabelEncoder()
     # y = le.fit_transform(y)
-
-    auc_results = {"y_true": y}
 
     # split data into training and testing datasets
     X_train, X_test, y_train, y_test = train_test_split(X, 
@@ -150,6 +150,7 @@ def main():
                                                         train_size=split_ratio,
                                                         random_state=seed)
     
+    auc_results = {"y_true": y_test}
     training_indices = X_train.index
     testing_indices = X_test.index
 
@@ -175,29 +176,31 @@ def main():
     print('Running Random Forest')
     rf_clf = RandomForestClassifier(n_estimators=100)
     rf_clf.fit(X_train, y_train)
-    auc_results['RF'] = rf_clf.predict_proba(X_test)
+    auc_results['RF'] = rf_clf.predict_proba(X_test)[:, 1]
 
     # Predict with Logistic Regression
     print('Running Logistic regression')
     lr_clf = LogisticRegression(max_iter=2000)
     lr_clf.fit(X_train, y_train)
-    auc_results['LR'] = lr_clf.predict_proba(X_test)
+    auc_results['LR'] = lr_clf.predict_proba(X_test)[:, 1]
 
     # Predict with Support Vector Machine
     print('Running Support vector machine')
     svm_clf = svm.SVC(kernel='linear', probability=True)
     svm_clf.fit(X_train, y_train)
-    auc_results['SVM'] = svm_clf.predict_proba(X_test)
+    auc_results['SVM'] = svm_clf.predict_proba(X_test)[:, 1]
 
     # Predict with lightGBM
     print('Running lightGBM')
     gbm_clf = LGBMClassifier()
     gbm_clf.fit(X_train, y_train)
-    auc_results['lightGBM'] = gbm_clf.predict_proba(X_test)
+    auc_results['lightGBM'] = gbm_clf.predict_proba(X_test)[:, 1]
+
+    print(auc_results.keys())
     
     auc_df = pd.DataFrame(auc_results)
+    print(auc_df.shape)
     auc_df.to_csv(f"auc_result_{label}.csv", index=False)
-
 
 if __name__ == "__main__":
     main()
