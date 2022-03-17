@@ -1,7 +1,7 @@
 {
-  "input_path": "./simulated_data.csv",
-  "last_feature_col_index": 53,
-  "label_cols": [54],
+  "input_path": "./data/pan_genome_dataset.csv",
+  "feature_path": "./data/pan_genome_features.pkl",
+  "label_path": "./data/ast_label.pkl",
   "forest_preprocessing": 0,
   "split_ratio": 0.8,
   "seed": 22
