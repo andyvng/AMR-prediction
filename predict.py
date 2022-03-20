@@ -46,26 +46,28 @@ def predict_with_wdnn(X,
     """
     X_train = X.iloc[training_indices, :]
     X_test = X.iloc[testing_indices, :]
-    y_train = y.iloc[training_indices, :]
-    y_test = y.iloc[testing_indices, :]
+    y_train = y[training_indices]
+    y_test = y[testing_indices]
 
     # preprocess feature with tree-based model
     if forest_preprocessing:
         n_trees = 500
-        forest_clf = RandomForestClassifier(n_estimators=n_tress, n_jobs=1)
+        forest_clf = RandomForestClassifier(n_estimators=n_trees, n_jobs=1)
         forest_clf.fit(X_train, y_train)
         X_preprocessed = [tree.predict(X) for tree in forest_clf.estimators_]
         X_preprocessed = np.transpose(X_preprocessed)
 
-        X_train = X_preprocessed.iloc[training_indices, :]
-        X_test = X_preprocessed.iloc[testing_indices, :]
+        X_train = X_preprocessed[training_indices, :]
+        X_test = X_preprocessed[testing_indices, :]
+
+        print(f"X_train shape: {X_train.shape}, X_test shape: {X_test.shape}")
 
     # develop wide and deep neural networks model
     learning_rate= 0.001
-    batch_size = 256
-    num_epochs = 10
+    batch_size = 128
+    num_epochs = 50
 
-    hidden_units = [128, 128, 64]
+    hidden_units = [256, 128, 64]
     inputs= keras.Input(shape=(X_train.shape[1],))
     wide = inputs
     wide = layers.BatchNormalization()(wide)
@@ -101,7 +103,7 @@ def predict_with_wdnn(X,
     # print(f"Accuracy: {accuracy}")
     # print(f"AUC: {auc}")
 
-    return model.predict(X_test)[:, 1]    
+    return list(model.predict(X_test)[:, 0])
 
 def main():
     args = arg_parse()
@@ -116,8 +118,10 @@ def main():
     # forest_preprocessing = config["forest_preprocessing"] == 1
 
     # Get drug AST label
-    with open(config['label_path'], 'rb') as label_file:
-        labels = pickle.load(label_file)
+    # with open(config['label_path'], 'rb') as label_file:
+    #     labels = pickle.load(label_file)
+
+    labels = ['EUCASTv11_P/TZ', 'EUCASTv11_TOL/TZ']
 
     label_index  = int(args.label_index) - 1
     label = labels[label_index]
@@ -151,8 +155,8 @@ def main():
                                                         random_state=seed)
     
     auc_results = {"y_true": y_test}
-    training_indices = X_train.index
-    testing_indices = X_test.index
+    training_indices = list(X_train.index.values)
+    testing_indices = list(X_test.index.values)
 
     print(f"X shape {X_train.shape}")
 
@@ -163,6 +167,7 @@ def main():
                                             training_indices,
                                             testing_indices,
                                             forest_preprocessing=False)
+    # print(auc_results['WDNN'])
 
     # Predict with ForestWDNN
     print('Running fWDNN')
@@ -171,6 +176,7 @@ def main():
                                              training_indices,
                                              testing_indices,
                                              forest_preprocessing=True)
+    # print(auc_results['fWDNN'])
 
     # Predict with Random Forest
     print('Running Random Forest')
@@ -195,12 +201,13 @@ def main():
     gbm_clf = LGBMClassifier()
     gbm_clf.fit(X_train, y_train)
     auc_results['lightGBM'] = gbm_clf.predict_proba(X_test)[:, 1]
+    # print(auc_results['lightGBM'])
 
     print(auc_results.keys())
     
     auc_df = pd.DataFrame(auc_results)
     print(auc_df.shape)
-    auc_df.to_csv(f"auc_result_{label}.csv", index=False)
+    auc_df.to_csv(f"auc_result_{label_index}.csv", index=False)
 
 if __name__ == "__main__":
     main()
