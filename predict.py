@@ -118,10 +118,10 @@ def main():
     # forest_preprocessing = config["forest_preprocessing"] == 1
 
     # Get drug AST label
-    # with open(config['label_path'], 'rb') as label_file:
-    #     labels = pickle.load(label_file)
+    with open(config['label_path'], 'rb') as label_file:
+        labels = pickle.load(label_file)
 
-    labels = ['EUCASTv11_P/TZ', 'EUCASTv11_TOL/TZ']
+    # labels = ['EUCASTv11_P/TZ', 'EUCASTv11_TOL/TZ']
 
     label_index  = int(args.label_index) - 1
     label = labels[label_index]
@@ -162,52 +162,64 @@ def main():
 
 
     # Predict with Wide and Deep neural network (WDNN)
-    auc_results['WDNN'] = predict_with_wdnn(X,
+    auc_results['WDNN_prob'] = predict_with_wdnn(X,
                                             y,
                                             training_indices,
                                             testing_indices,
                                             forest_preprocessing=False)
+    auc_results['WDNN_pred'] = (auc_results['WDNN_prob'] > 0.5).astype('int')
+
     # print(auc_results['WDNN'])
 
     # Predict with ForestWDNN
     print('Running fWDNN')
-    auc_results['fWDNN'] = predict_with_wdnn(X,
+    auc_results['fWDNN_prob'] = predict_with_wdnn(X,
                                              y,
                                              training_indices,
                                              testing_indices,
                                              forest_preprocessing=True)
+    # Convert to predicted class with threshold 0.5
+    auc_results['fWDNN_pred'] = (auc_results['fWDNN_prob'] > 0.5).astype('int')
+
     # print(auc_results['fWDNN'])
 
     # Predict with Random Forest
     print('Running Random Forest')
     rf_clf = RandomForestClassifier(n_estimators=100)
     rf_clf.fit(X_train, y_train)
-    auc_results['RF'] = rf_clf.predict_proba(X_test)[:, 1]
+    auc_results['RF_prob'] = rf_clf.predict_proba(X_test)[:, 1]
+    auc_results['RF_pred'] = rf_clf.predict(X_test)
 
     # Predict with Logistic Regression
     print('Running Logistic regression')
     lr_clf = LogisticRegression(max_iter=2000)
     lr_clf.fit(X_train, y_train)
-    auc_results['LR'] = lr_clf.predict_proba(X_test)[:, 1]
+    auc_results['LR_prob'] = lr_clf.predict_proba(X_test)[:, 1]
+    auc_results['LR_pred'] = lr_clf.predict(X_test)
 
     # Predict with Support Vector Machine
     print('Running Support vector machine')
     svm_clf = svm.SVC(kernel='linear', probability=True)
     svm_clf.fit(X_train, y_train)
-    auc_results['SVM'] = svm_clf.predict_proba(X_test)[:, 1]
+    auc_results['SVM_prob'] = svm_clf.predict_proba(X_test)[:, 1]
+    auc_results['SVM_pred'] = svm_clf.predict(X_test)[:, 1]
 
     # Predict with lightGBM
     print('Running lightGBM')
     gbm_clf = LGBMClassifier()
     gbm_clf.fit(X_train, y_train)
-    auc_results['lightGBM'] = gbm_clf.predict_proba(X_test)[:, 1]
+    auc_results['lightGBM_prob'] = gbm_clf.predict_proba(X_test)[:, 1]
+    auc_results['lightGBM_pred'] = gbm_clf.predict(X_test)[:, 1]
     # print(auc_results['lightGBM'])
 
     print(auc_results.keys())
     
     auc_df = pd.DataFrame(auc_results)
     print(auc_df.shape)
-    auc_df.to_csv(f"auc_result_{label_index}.csv", index=False)
+    
+    if label in ['EUCASTv11_P/TZ', 'EUCASTv11_TOL/TZ']:
+        label = "_".join(label.split('/'))
+    auc_df.to_csv(f"auc_result_{label}.csv", index=False)
 
 if __name__ == "__main__":
     main()
