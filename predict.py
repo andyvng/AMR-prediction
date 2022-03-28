@@ -141,8 +141,6 @@ def main():
     y = y[mask].reset_index(drop=True)
     X = X[mask].reset_index(drop=True)
 
-    print(y.head(10))
-
     # # encode label
     # le = LabelEncoder()
     # y = le.fit_transform(y)
@@ -167,7 +165,8 @@ def main():
                                             training_indices,
                                             testing_indices,
                                             forest_preprocessing=False)
-    auc_results['WDNN_pred'] = (auc_results['WDNN_prob'] > 0.5).astype('int')
+
+    auc_results['WDNN_pred'] = list((np.array(auc_results['WDNN_prob']) > 0.5).astype('int'))
 
     # print(auc_results['WDNN'])
 
@@ -179,7 +178,7 @@ def main():
                                              testing_indices,
                                              forest_preprocessing=True)
     # Convert to predicted class with threshold 0.5
-    auc_results['fWDNN_pred'] = (auc_results['fWDNN_prob'] > 0.5).astype('int')
+    auc_results['fWDNN_pred'] = list((np.array(auc_results['fWDNN_prob']) > 0.5).astype('int'))
 
     # print(auc_results['fWDNN'])
 
@@ -189,6 +188,12 @@ def main():
     rf_clf.fit(X_train, y_train)
     auc_results['RF_prob'] = rf_clf.predict_proba(X_test)[:, 1]
     auc_results['RF_pred'] = rf_clf.predict(X_test)
+
+    # Get 30 most important features from Random forest
+    rf_feature_imp = pd.DataFrame(sorted(zip(rf_clf.feature_importances_, X_train.columns)), columns=['value','feature']).sort_values(by='value', ascending=False).iloc[:30, :]
+
+    rf_feature_imp['feature'] = rf_feature_imp.apply(lambda row: row['feature'].split('~')[-1], axis=1)
+
 
     # Predict with Logistic Regression
     print('Running Logistic regression')
@@ -202,23 +207,31 @@ def main():
     svm_clf = svm.SVC(kernel='linear', probability=True)
     svm_clf.fit(X_train, y_train)
     auc_results['SVM_prob'] = svm_clf.predict_proba(X_test)[:, 1]
-    auc_results['SVM_pred'] = svm_clf.predict(X_test)[:, 1]
+    auc_results['SVM_pred'] = svm_clf.predict(X_test)
 
     # Predict with lightGBM
     print('Running lightGBM')
     gbm_clf = LGBMClassifier()
     gbm_clf.fit(X_train, y_train)
     auc_results['lightGBM_prob'] = gbm_clf.predict_proba(X_test)[:, 1]
-    auc_results['lightGBM_pred'] = gbm_clf.predict(X_test)[:, 1]
+    auc_results['lightGBM_pred'] = gbm_clf.predict(X_test)
     # print(auc_results['lightGBM'])
 
-    print(auc_results.keys())
-    
+    # Get 30 most important features from lightGBM
+    gbm_feature_imp = pd.DataFrame(sorted(zip(gbm_clf.feature_importances_, X_train.columns)), columns=['value','feature']).sort_values(by='value', ascending=False).iloc[:30, :]
+
+    gbm_feature_imp['feature'] = gbm_feature_imp.apply(lambda row: row['feature'].split('~')[-1], axis=1)
+
     auc_df = pd.DataFrame(auc_results)
+
+    auc_df['label'] = label
     print(auc_df.shape)
     
     if label in ['EUCASTv11_P/TZ', 'EUCASTv11_TOL/TZ']:
         label = "_".join(label.split('/'))
+
+    gbm_feature_imp.to_csv(f'lightgbm_important_features_{label}.csv')
+    rf_feature_imp.to_csv(f'random_forest_important_features_{label}.csv')
     auc_df.to_csv(f"auc_result_{label}.csv", index=False)
 
 if __name__ == "__main__":
